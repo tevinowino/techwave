@@ -6,7 +6,12 @@ import {
   ScrollRestoration,
 } from "@remix-run/react";
 
+
+
 import "./tailwind.css";
+import Header from "./components/header";
+import NewsletterSignup from "./components/NewsletterSignup";
+import Footer from "./components/Footer";
 
 export const links = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -31,7 +36,10 @@ export function Layout({ children }) {
         <Links />
       </head>
       <body>
+        < Header />
         {children}
+        <NewsletterSignup />
+        <Footer />
         <ScrollRestoration />
         <Scripts />
       </body>

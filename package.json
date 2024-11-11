@@ -13,7 +13,10 @@
     "@remix-run/node": "^2.13.1",
     "@remix-run/react": "^2.13.1",
     "@remix-run/serve": "^2.13.1",
+    "dotenv": "^16.4.5",
     "isbot": "^4.1.0",
+    "lucide-react": "^0.454.0",
+    "mongodb": "^6.10.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
