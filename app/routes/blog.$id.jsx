@@ -1,61 +1,45 @@
-import { json, useLoaderData } from "@remix-run/react";
+import { json, useLoaderData, Form, Link } from "@remix-run/react";
 import { client } from "../../mongoClient";
 import { ObjectId } from "mongodb";
-import { useRef, useState } from "react";
-import { Link } from "lucide-react";
+import { Heart, HeartOff, Send } from 'lucide-react';
 
+// Loader to fetch the article
 export const loader = async ({ params }) => {
-  try {
-    const { id } = params;  // The _id will be available as a URL parameter
-    const db = client.db("techwave");
-    const collection = db.collection("articles");
-
-    // Fetch article by MongoDB ObjectId
-    const article = await collection.findOne({ _id: new ObjectId(id) });
-
-    if (!article) {
-      throw new Response("Article not found", { status: 404 });
-    }
-
-    return json(article);  // Return the article object
-  } catch (error) {
-    console.error("Failed to fetch article:", error);
-    throw new Response("Failed to load article", { status: 500 });
-  }
+  const { id } = params;
+  const db = client.db("techwave");
+  const collection = db.collection("articles");
+  const article = await collection.findOne({ _id: new ObjectId(id) });
+  if (!article) throw new Response("Article not found", { status: 404 });
+  return json(article);
 };
 
-const BlogPage = () => {
-  const article = useLoaderData();  // Get the single article object from the loader
-  console.log({ article });
+// Action to handle likes, dislikes, and comments
+export const action = async ({ request, params }) => {
+  const { id } = params;
+  const formData = new URLSearchParams(await request.text());
+  console.log({formData});
+  const db = client.db("techwave");
+  const collection = db.collection("articles");
 
-  const [likes, setLikes] = useState(0);
-  const [dislikes, setDislikes] = useState(0);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
-  const commentEndRef = useRef(null);
-
-  const handleLike = () => setLikes(likes + 1);
-  const handleDislike = () => setDislikes(dislikes + 1);
-
-  const handleCommentSubmit = (e) => {
-    e.preventDefault();
-    if (newComment.trim()) {
-      setComments([...comments, { text: newComment, timestamp: new Date().toLocaleString() }]);
-      setNewComment("");
-      setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-    }
-  };
-
-  if (!article) {
-    return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
-        <p>Article not found</p>
-        <Link to="/blogs" className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors mt-4">
-          Back to Blogs
-        </Link>
-      </div>
-    );
+  if (formData.has("action")) {
+    const action = formData.get("action");
+    await collection.updateOne({ _id: new ObjectId(id) }, { $inc: { [action === "like" ? "likes" : "dislikes"]: 1 } });
   }
+
+  if (formData.has("comment")) {
+    const comment = formData.get("comment").trim();
+    if (comment) {
+      const newComment = { text: comment, timestamp: new Date().toLocaleString() };
+      await collection.updateOne({ _id: new ObjectId(id) }, { $push: { comments: newComment } });
+    }
+  }
+
+  return json({ success: true, updatedArticle: await collection.findOne({ _id: new ObjectId(id) }) });
+};
+
+// Main BlogPage component
+const BlogPage = () => {
+  const article = useLoaderData();
 
   return (
     <div className="min-h-screen bg-black text-white font-sans">
@@ -63,7 +47,7 @@ const BlogPage = () => {
         {/* Article Header */}
         <section className="mb-12">
           <div className="relative h-72 overflow-hidden">
-            <img src={article.image} alt={article.title} className="w-full h-full object-cover object-center" />
+            <img src={article.image || '/path/to/default/image.jpg'} alt={article.title} className="w-full h-full object-cover object-center" />
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/80 to-transparent"></div>
           </div>
           <div className="mt-6">
@@ -79,43 +63,47 @@ const BlogPage = () => {
         <section className="mb-12">
           <p className="text-gray-400 mb-8">{article.description}</p>
           <div className="prose prose-lg text-white">
-            <p>{article.content}</p>  {/* Assuming article has a content field */}
+            <p>{article.content}</p>
           </div>
         </section>
 
-        {/* Likes and Dislikes */}
+        {/* Likes and Dislikes with Icons */}
         <section className="mb-12 flex justify-center space-x-4">
-          <button onClick={handleLike} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" aria-label="Like">
-            Like ({likes})
-          </button>
-          <button onClick={handleDislike} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors" aria-label="Dislike">
-            Dislike ({dislikes})
-          </button>
+          <Form method="post" action={`/blog/${article._id}`}>
+            <button type="submit" name="action" value="like" className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" aria-label="Like">
+              <Heart className="mr-2" />
+              Like ({article.likes})
+            </button>
+            <button type="submit" name="action" value="dislike" className="flex items-center px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700" aria-label="Dislike">
+              <HeartOff className="mr-2" />
+              Dislike ({article.dislikes})
+            </button>
+          </Form>
         </section>
 
-        {/* Comments */}
+        {/* Comments Section */}
         <section className="mb-12">
           <h2 className="text-3xl font-bold mb-4">Comments</h2>
           <div className="space-y-4">
-            {comments.map((comment, index) => (
+            {(article.comments || []).map((comment, index) => (
               <div key={index} className="bg-gray-900 rounded-lg p-4">
                 <p className="text-gray-400">{comment.text}</p>
                 <span className="text-gray-500 text-sm">{comment.timestamp}</span>
               </div>
             ))}
-            <div ref={commentEndRef}></div>
           </div>
-          <form onSubmit={handleCommentSubmit} className="mt-4">
-            <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} className="bg-gray-900 rounded-lg p-4 w-full text-white" placeholder="Add a comment..." rows={3}></textarea>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors mt-2">
+          <Form method="post" action={`/blog/${article._id}`} className="mt-6">
+            <textarea name="comment" className="bg-gray-900 rounded-lg p-4 w-full text-white focus:ring-2 focus:ring-blue-600" placeholder="Add a comment..." rows={3}></textarea>
+            <button type="submit" className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 mt-2">
+              <Send className="mr-2" />
               Submit Comment
             </button>
-          </form>
+          </Form>
         </section>
 
         {/* Back to Blogs */}
         <section className="flex justify-center">
-          <Link to="/blogs" className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors">Back to Blogs</Link>
+          <Link to="/blogs" className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700">Back to Blogs</Link>
         </section>
       </main>
     </div>
