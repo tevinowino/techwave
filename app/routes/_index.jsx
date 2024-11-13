@@ -1,5 +1,5 @@
 import ArticleCard from "../components/ArticleCard";
-import { json } from "@remix-run/node"; // Correct import
+import { json } from "@remix-run/node"; 
 import { useLoaderData, Link } from "@remix-run/react";
 import { client } from "../../mongoClient";
 
