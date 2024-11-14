@@ -68,7 +68,7 @@ export default function Admin() {
         setEditingArticleId(null);
         setArticleData({});
     };
-
+//Comment
     return (
         <div className="min-h-screen bg-black text-white font-sans">
             <main className="container mx-auto px-4 lg:px-8 py-8">
@@ -116,6 +116,7 @@ export default function Admin() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
+                                
                                     <label className="block text-sm font-medium mb-2">Category</label>
                                     <input
                                         type="text"
